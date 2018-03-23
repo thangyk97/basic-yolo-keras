@@ -2,17 +2,17 @@
     "model" : {
         "architecture":         "Full Yolo",
         "input_size":           416,
-        "anchors":              [0.57273, 0.677385, 1.87446, 2.06253, 3.33843, 5.47434, 7.88282, 3.52778, 9.77052, 9.16828],
-        "max_box_per_image":    10,        
+        "anchors":              [4.03,5.23, 5.60,9.47, 7.53,11.54, 9.92,8.75, 11.02,11.99],
+        "max_box_per_image":    10,
         "labels":               ["raccoon"]
     },
 
     "train": {
-        "train_image_folder":   "/home/andy/github/raccoon_dataset/images/",
-        "train_annot_folder":   "/home/andy/github/raccoon_dataset/annotations/",     
+        "train_image_folder":   "/home/pass/git/raccoon_dataset/images/",
+        "train_annot_folder":   "/home/pass/git/raccoon_dataset/annotations/",
           
         "train_times":          10,
-        "pretrained_weights":   "full_yolo_raccoon.h5",
+        "pretrained_weights":   "full_yolo_backend.h5",
         "batch_size":           16,
         "learning_rate":        1e-4,
         "nb_epoch":             50,

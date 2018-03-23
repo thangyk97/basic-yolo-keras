@@ -24,7 +24,7 @@ class YOLO(object):
         
         self.labels   = list(labels)
         self.nb_class = len(self.labels)
-        self.nb_box   = len(anchors)/2
+        self.nb_box   = len(anchors)//2
         self.class_wt = np.ones(self.nb_class, dtype='float32')
         self.anchors  = anchors
 
@@ -55,12 +55,12 @@ class YOLO(object):
         else:
             raise Exception('Architecture not supported! Only support Full Yolo, Tiny Yolo, MobileNet, SqueezeNet, VGG16, ResNet50, and Inception3 at the moment!')
 
-        print self.feature_extractor.get_output_shape()    
+        print (self.feature_extractor.get_output_shape())
         self.grid_h, self.grid_w = self.feature_extractor.get_output_shape()        
         features = self.feature_extractor.extract(input_image)            
 
         # make the object detection layer
-        output = Conv2D(self.nb_box * (4 + 1 + self.nb_class), 
+        output = Conv2D(self.nb_box * (4 + 1 + self.nb_class),
                         (1,1), strides=(1,1), 
                         padding='same', 
                         name='conv_23', 
