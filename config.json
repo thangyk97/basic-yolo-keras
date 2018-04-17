@@ -8,8 +8,8 @@
     },
 
     "train": {
-        "train_image_folder":   "/home/pass/git/raccoon_dataset/images/",
-        "train_annot_folder":   "/home/pass/git/raccoon_dataset/annotations/",
+        "train_image_folder":   "/home/vtc/git/data/train2014/",
+        "train_annot_folder":   "/home/vtc/git/recode_obj_detection/data/train2014pascal2/",
           
         "train_times":          10,
         "pretrained_weights":   "full_yolo_backend.h5",

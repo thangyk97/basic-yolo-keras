@@ -16,6 +16,23 @@ import os, cv2
 from preprocessing import parse_annotation, BatchGenerator
 from utils import WeightReader, decode_netout, draw_boxes, normalize
 
+def get_session(gpu_fraction=0.7):
+    '''Assume that you have 6GB of GPU memory and want to allocate ~2GB'''
+
+    num_threads = os.environ.get('OMP_NUM_THREADS')
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction)
+
+    if num_threads:
+        return tf.Session(config=tf.ConfigProto(
+            gpu_options=gpu_options, intra_op_parallelism_threads=num_threads))
+    else:
+        return tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
+K.set_session(get_session())
+
+
+
+
     # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -27,7 +44,7 @@ BOX              = 5
 CLASS            = len(LABELS)
 CLASS_WEIGHTS    = np.ones(CLASS, dtype='float32')
 OBJ_THRESHOLD    = 0.3#0.5
-NMS_THRESHOLD    = 0.3#0.45
+NMS_THRESHOLD    = 0.6#0.45
 ANCHORS          = [0.57273, 0.677385, 1.87446, 2.06253, 3.33843, 5.47434, 7.88282, 3.52778, 9.77052, 9.16828]
 
 NO_OBJECT_SCALE  = 1.0
@@ -39,11 +56,11 @@ BATCH_SIZE       = 16
 WARM_UP_BATCHES  = 0
 TRUE_BOX_BUFFER  = 50
 
-wt_path = '/home/pass/git/data/yolo.weights'
-train_image_folder = '/home/pass/git/data/train2014/'
-train_annot_folder = '/home/pass/git/data/train2014pascal/'
-valid_image_folder = '/home/pass/git/data/val2014/'
-valid_annot_folder = '/home/pass/git/data/val2014pascal/'
+wt_path = '/home/vtc/git/data/yolo.weights'
+train_image_folder = '/home/vtc/git/data/train2014/'
+train_annot_folder = '/home/vtc/git/recode_obj_detection/data/train2014pascal2/'
+valid_image_folder = '/home/vtc/git/data/val2014/'
+valid_annot_folder = '/home/vtc/git/recode_obj_detection/data/val2014pascal2/'
 
 from tensorflow.python.client import device_lib
 print (device_lib.list_local_devices())
@@ -401,7 +418,7 @@ generator_config = {
     'BATCH_SIZE'      : BATCH_SIZE,
     'TRUE_BOX_BUFFER' : 50,
 }
-
+print("-1")
 train_imgs, seen_train_labels = parse_annotation(train_annot_folder, train_image_folder, labels=LABELS)
 ### write parsed annotations to pickle for fast retrieval next time
 #with open('train_imgs', 'wb') as fp:
@@ -410,8 +427,9 @@ train_imgs, seen_train_labels = parse_annotation(train_annot_folder, train_image
 ### read saved pickle of parsed annotations
 #with open ('train_imgs', 'rb') as fp:
 #    train_imgs = pickle.load(fp)
+print("-0.5")
 train_batch = BatchGenerator(train_imgs, generator_config, norm=normalize)
-
+print("0")
 valid_imgs, seen_valid_labels = parse_annotation(valid_annot_folder, valid_image_folder, labels=LABELS)
 ### write parsed annotations to pickle for fast retrieval next time
 #with open('valid_imgs', 'wb') as fp:
@@ -445,9 +463,9 @@ tensorboard = TensorBoard(log_dir=os.path.expanduser('~/logs/') + 'coco_' + '_' 
 optimizer = Adam(lr=0.5e-4, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 #optimizer = SGD(lr=1e-4, decay=0.0005, momentum=0.9)
 #optimizer = RMSprop(lr=1e-4, rho=0.9, epsilon=1e-08, decay=0.0)
-
+print("1")
 model.compile(loss=custom_loss, optimizer=optimizer)
-
+print("2")
 model.fit_generator(generator        = train_batch,
                     steps_per_epoch  = len(train_batch),
                     epochs           = 1,
