@@ -1,20 +1,18 @@
-from keras.models import Sequential, Model
-from keras.layers import Reshape, Activation, Conv2D, Input, MaxPooling2D, BatchNormalization, Flatten, Dense, Lambda
+from keras.models import Model
+from keras.layers import Reshape, Conv2D, Input, MaxPooling2D, BatchNormalization, Flatten, Dense, Lambda
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.merge import concatenate
-import matplotlib.pyplot as plt
 import keras.backend as K
 import tensorflow as tf
 import time
+import sys
 import numpy as np
 import os, cv2
-from utils import WeightReader, decode_netout, draw_boxes, normalize
+from utils import sigmoid
 #
 from tensorflow.python.saved_model import builder as saved_model_builder
-from tensorflow.python.saved_model import utils
 from tensorflow.python.saved_model import tag_constants, signature_constants
 from tensorflow.python.saved_model.signature_def_utils_impl import build_signature_def, predict_signature_def
-from tensorflow.contrib.session_bundle import exporter
 #
 
 import os
@@ -52,6 +50,20 @@ train_annot_folder = '/home/pass/git/data/train2014pascal/'
 valid_image_folder = '/home/pass/git/data/val2014/'
 valid_annot_folder = '/home/pass/git/data/val2014pascal/'
 
+def decode_netout_tensor(sess, output, obj_theshold, nms_threshold, anchors, nb_class):
+    x, y, w, h, p, class_prob = tf.split(output, [1,1,1,1,1,nb_class], 4)
+
+    x = tf.nn.sigmoid(x)
+    y = tf.nn.sigmoid(y)
+    w = tf.nn.sigmoid(w)
+    h = tf.nn.sigmoid(h)
+    p = tf.nn.sigmoid(p)
+
+
+    result = tf.nn.softmax(class_prob)
+
+    print(result)
+    return result
 
 # the function to implement the orgnization layer (thanks to github.com/allanzelener/YAD2K)
 def space_to_depth_x2(x):
@@ -183,11 +195,8 @@ x = LeakyReLU(alpha=0.1)(x)
 
 # Layer 23
 x = Conv2D(BOX * (4 + 1 + CLASS), (1,1), strides=(1,1), padding='same', name='conv_23')(x)
-output = Reshape((GRID_H, GRID_W, BOX, 4 + 1 + CLASS))(x)
 
-# small hack to allow true_boxes to be registered when Keras build the model
-# for more information: https://github.com/fchollet/keras/issues/2790
-# output = Lambda(lambda args: args[0])([output, true_boxes])
+output = Reshape((GRID_H, GRID_W, BOX, 4 + 1 + CLASS))(x)
 
 model = Model(input_image, output)
 
@@ -201,64 +210,29 @@ model.load_weights("weights_coco.h5")
 dummy_array = np.zeros((1,1,1,1,TRUE_BOX_BUFFER,4))
 
 ####### Export Model ##########
-export_path = '/home/vtc/Desktop/model/mnist_model'
+export_path = '/home/vtc/Desktop/model/mnist_model2'
 builder = saved_model_builder.SavedModelBuilder(export_path)
-print(model.input)
-signature = predict_signature_def(
-    inputs  = {'images': model.input},
-    outputs = {'boxs'  : model.output} )
 
 with K.get_session() as sess:
+    output = decode_netout_tensor(
+                sess,
+                model.output,
+                obj_theshold=OBJ_THRESHOLD,
+                nms_threshold=NMS_THRESHOLD,
+                anchors=ANCHORS,
+                nb_class=CLASS)
+
+    print(model.output)
+
+    signature = predict_signature_def(
+        inputs  = {'images': model.input},
+        outputs = {'boxs'  : output} )
+
+
     builder.add_meta_graph_and_variables(
         sess = sess,
         tags=[tag_constants.SERVING],
         signature_def_map={'predict': signature})
     builder.save()
-
-
-
-
-
-
-
-
-
-
-
-
-
-# #
-# def test_img(link_img):
-#     start = time.time()
-#     image = cv2.imread(link_img)
-#
-#     # plt.figure(figsize=(10, 10))
-#
-#     input_image = cv2.resize(image, (416, 416))
-#     input_image = input_image / 255.
-#     input_image = input_image[:, :, ::-1]
-#     input_image = np.expand_dims(input_image, 0)
-#
-#     netout = model.predict([input_image, dummy_array])
-#     print(str(netout.shape))
-#     boxes = decode_netout(netout[0],
-#                           obj_threshold=OBJ_THRESHOLD,
-#                           nms_threshold=NMS_THRESHOLD,
-#                           anchors=ANCHORS,
-#                           nb_class=CLASS)
-#     image = draw_boxes(image, boxes, labels=LABELS)
-#     print("{} s".format(time.time() - start))
-#     plt.imshow(image[:, :, ::-1]);
-#     plt.show()
-#
-# k = 'lol'
-# while 1:
-#     k = input("Nhap link anh('q' de thoat)")
-#     if k == 'q' or k == 'Q':
-#         break
-#     try:
-#         test_img(k)
-#     except:
-#         pass
 
 

@@ -34,7 +34,7 @@ GRID_H,  GRID_W  = 13 , 13
 BOX              = 5
 CLASS            = len(LABELS)
 CLASS_WEIGHTS    = np.ones(CLASS, dtype='float32')
-OBJ_THRESHOLD    = 0.1#0.5
+OBJ_THRESHOLD    = 0.3#0.5
 NMS_THRESHOLD    = 0.3#0.45
 ANCHORS          = [0.57273, 0.677385, 1.87446, 2.06253, 3.33843, 5.47434, 7.88282, 3.52778, 9.77052, 9.16828]
 
@@ -45,6 +45,8 @@ train_image_folder = '/home/pass/git/data/train2014/'
 train_annot_folder = '/home/pass/git/data/train2014pascal/'
 valid_image_folder = '/home/pass/git/data/val2014/'
 valid_annot_folder = '/home/pass/git/data/val2014pascal/'
+
+
 
 
 # the function to implement the orgnization layer (thanks to github.com/allanzelener/YAD2K)
@@ -206,7 +208,7 @@ def test_img(link_img):
     input_image = np.expand_dims(input_image, 0)
 
     netout = model.predict([input_image, dummy_array])
-
+    print (netout[0].shape)
     boxes = decode_netout(netout[0],
                           obj_threshold=OBJ_THRESHOLD,
                           nms_threshold=NMS_THRESHOLD,
