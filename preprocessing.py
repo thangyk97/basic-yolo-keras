@@ -6,17 +6,23 @@ import imgaug as ia
 from imgaug import augmenters as iaa
 from keras.utils import Sequence
 import xml.etree.ElementTree as ET
+
+
+
 from utils import BoundBox, normalize, bbox_iou
 
 def parse_annotation(ann_dir, img_dir, labels=[]):
+    """
+    
+    """
     all_imgs = []
     seen_labels = {}
-    
+    # Loop with files in folder
     for ann in sorted(os.listdir(ann_dir)):
         img = {'object':[]}
-        
         tree = ET.parse(ann_dir + ann)
         
+        # Loop with elementes in each file
         for elem in tree.iter():
             if 'filename' in elem.tag:
                 img['filename'] = img_dir + elem.text
@@ -25,8 +31,9 @@ def parse_annotation(ann_dir, img_dir, labels=[]):
             if 'height' in elem.tag:
                 img['height'] = int(elem.text)
             if 'object' in elem.tag or 'part' in elem.tag:
-                obj = {}
                 
+                obj = {} # init obj
+                # Loop with attributes of object
                 for attr in list(elem):
                     if 'name' in attr.tag:
                         obj['name'] = attr.text
@@ -214,7 +221,7 @@ class BatchGenerator(Sequence):
                         cv2.rectangle(img[:,:,::-1], (obj['xmin'],obj['ymin']), (obj['xmax'],obj['ymax']), (255,0,0), 3)
                         cv2.putText(img[:,:,::-1], obj['name'], 
                                     (obj['xmin']+2, obj['ymin']+12), 
-                                    0, 1.2e-3 * img.shape[0], 
+                                    0, 1.2e-3 * img.shape[0],
                                     (0,255,0), 2)
                         
                 x_batch[instance_count] = img
