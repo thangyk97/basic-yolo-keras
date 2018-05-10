@@ -19,11 +19,13 @@ def parse_annotation(ann_dir, img_dir, labels=[]):
     seen_labels = {}
     # Loop with files in folder
     for ann in sorted(os.listdir(ann_dir)):
+        print(ann_dir + ann)
         img = {'object':[]}
         tree = ET.parse(ann_dir + ann)
         
         # Loop with elementes in each file
         for elem in tree.iter():
+
             if 'filename' in elem.tag:
                 img['filename'] = img_dir + elem.text
             if 'width' in elem.tag:

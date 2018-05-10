@@ -1,31 +1,21 @@
-from keras.models import Sequential, Model
-from keras.layers import Reshape, Activation, Conv2D, Input, MaxPooling2D, BatchNormalization, Flatten, Dense, Lambda
+from keras.models import Model
+from keras.layers import Reshape, Conv2D, Input, MaxPooling2D, BatchNormalization, Flatten, Dense, Lambda
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.merge import concatenate
-import matplotlib.pyplot as plt
 import keras.backend as K
 import tensorflow as tf
 import time
+import sys
 import numpy as np
 import os, cv2
-from tqdm import tqdm
-from utils import WeightReader, decode_netout, draw_boxes, normalize
+from utils import sigmoid
+#
+from tensorflow.python.saved_model import builder as saved_model_builder
+from tensorflow.python.saved_model import tag_constants, signature_constants
+from tensorflow.python.saved_model.signature_def_utils_impl import build_signature_def, predict_signature_def
+#
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="-1"
-# def get_session(gpu_fraction=0.8):
-#     '''Assume that you have 6GB of GPU memory and want to allocate ~2GB'''
-#
-#     num_threads = os.environ.get('OMP_NUM_THREADS')
-#     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction)
-#
-#     if num_threads:
-#         return tf.Session(config=tf.ConfigProto(
-#             gpu_options=gpu_options, intra_op_parallelism_threads=num_threads))
-#     else:
-#         return tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-#
-# K.set_session(get_session())
 
 LABELS = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush']
 
@@ -34,7 +24,7 @@ GRID_H,  GRID_W  = 13 , 13
 BOX              = 5
 CLASS            = len(LABELS)
 CLASS_WEIGHTS    = np.ones(CLASS, dtype='float32')
-OBJ_THRESHOLD    = 0.3#0.5
+OBJ_THRESHOLD    = 0.1#0.5
 NMS_THRESHOLD    = 0.3#0.45
 ANCHORS          = [0.57273, 0.677385, 1.87446, 2.06253, 3.33843, 5.47434, 7.88282, 3.52778, 9.77052, 9.16828]
 
@@ -45,7 +35,6 @@ train_image_folder = '/home/pass/git/data/train2014/'
 train_annot_folder = '/home/pass/git/data/train2014pascal/'
 valid_image_folder = '/home/pass/git/data/val2014/'
 valid_annot_folder = '/home/pass/git/data/val2014pascal/'
-
 
 
 
@@ -179,91 +168,32 @@ x = LeakyReLU(alpha=0.1)(x)
 
 # Layer 23
 x = Conv2D(BOX * (4 + 1 + CLASS), (1,1), strides=(1,1), padding='same', name='conv_23')(x)
+
 output = Reshape((GRID_H, GRID_W, BOX, 4 + 1 + CLASS))(x)
 
-# small hack to allow true_boxes to be registered when Keras build the model
-# for more information: https://github.com/fchollet/keras/issues/2790
-output = Lambda(lambda args: args[0])([output, true_boxes])
-
-model = Model([input_image, true_boxes], output)
+model = Model(input_image, output)
 
 # Print construct of model
 model.summary()
 
-
-
 model.load_weights("weights_coco.h5")
 
 dummy_array = np.zeros((1,1,1,1,TRUE_BOX_BUFFER,4))
-#
-def test_img(link_img):
-    start = time.time()
-    image = cv2.imread(link_img)
 
-    # plt.figure(figsize=(10, 10))
+####### Export Model ##########
+export_path = '/home/thangkt/git/basic-yolo-keras/yolo_model'
+builder = saved_model_builder.SavedModelBuilder(export_path)
 
-    input_image = cv2.resize(image, (416, 416))
-    input_image = input_image / 255.
-    input_image = input_image[:, :, ::-1]
-    input_image = np.expand_dims(input_image, 0)
+with K.get_session() as sess:
 
-    netout = model.predict([input_image, dummy_array])
-    print (netout[0].shape)
-    boxes = decode_netout(netout[0],
-                          obj_threshold=OBJ_THRESHOLD,
-                          nms_threshold=NMS_THRESHOLD,
-                          anchors=ANCHORS,
-                          nb_class=CLASS)
-    image = draw_boxes(image, boxes, labels=LABELS)
-    print("{} s".format(time.time() - start))
-    plt.imshow(image[:, :, ::-1]);
-    plt.show()
+    signature = predict_signature_def(
+        inputs  = {'images': model.input},
+        outputs = {'boxes'  : model.output} )
 
-k = 'lol'
-while 1:
-    k = input("Nhap link anh('q' de thoat)")
-    if k == 'q' or k == 'Q':
-        break
-    try:
-        test_img(k)
-    except:
-        pass
+    builder.add_meta_graph_and_variables(
+        sess = sess,
+        tags=[tag_constants.SERVING],
+        signature_def_map={'predict': signature})
+    builder.save()
 
 
-
-# Detect in video
-# video_inp = '../basic-yolo-keras/images/test.mp4'
-# video_out = '../basic-yolo-keras/images/test_bbox.mp4'
-#
-# video_reader = cv2.VideoCapture(video_inp)
-#
-# nb_frames = int(video_reader.get(cv2.CAP_PROP_FRAME_COUNT))
-# frame_h = int(video_reader.get(cv2.CAP_PROP_FRAME_HEIGHT))
-# frame_w = int(video_reader.get(cv2.CAP_PROP_FRAME_WIDTH))
-#
-# video_writer = cv2.VideoWriter(video_out,
-#                                cv2.VideoWriter_fourcc(*'XVID'),
-#                                50.0,
-#                                (frame_w, frame_h))
-#
-# for i in tqdm(range(nb_frames)):
-#     ret, image = video_reader.read()
-#
-#     input_image = cv2.resize(image, (416, 416))
-#     input_image = input_image / 255.
-#     input_image = input_image[:, :, ::-1]
-#     input_image = np.expand_dims(input_image, 0)
-#
-#     netout = model.predict([input_image, dummy_array])
-#
-#     boxes = decode_netout(netout[0],
-#                           obj_threshold=0.3,
-#                           nms_threshold=NMS_THRESHOLD,
-#                           anchors=ANCHORS,
-#                           nb_class=CLASS)
-#     image = draw_boxes(image, boxes, labels=LABELS)
-#
-#     video_writer.write(np.uint8(image))
-#
-# video_reader.release()
-# video_writer.release()

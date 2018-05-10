@@ -1,0 +1,5 @@
+.idea/
+__pycache__/
+images/
+config.json
+weights_coco.h5

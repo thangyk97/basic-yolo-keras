@@ -101,6 +101,7 @@ def draw_boxes(image, boxes, labels):
     return image        
         
 def decode_netout(netout, obj_threshold, nms_threshold, anchors, nb_class):
+
     grid_h, grid_w, nb_box = netout.shape[:3]
 
     boxes = []
